@@ -17,13 +17,20 @@ def get_client():
     return gspread.authorize(creds)
 
 # ---------- LOAD DATA ----------
-@st.cache_data(ttl=300)
-def load_sheet(sheet_name):
-    gc = get_client()
-    sh = gc.open_by_key(st.secrets["sheet_id"])
-    ws = sh.worksheet(sheet_name)
-    df = pd.DataFrame(ws.get_all_records())
-    return df
+vals = ws.get_all_values()
+headers = [h.strip() for h in vals[0]]
+rows = vals[1:]
+df = pd.DataFrame(rows, columns=headers)
+df.columns = (
+    pd.Index(df.columns)
+    .astype(str).str.strip().str.lower()
+    .str.replace(r"[^a-z0-9]+", "_", regex=True)
+    .str.strip("_")
+)
+import streamlit as st
+st.write("COLUMNS:", list(df.columns))
+st.write("DUPES:", df.columns[df.columns.duplicated()].tolist())
+
 
 def prep(df):
     if df.empty:
