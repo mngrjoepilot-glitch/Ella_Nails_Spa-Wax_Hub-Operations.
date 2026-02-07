@@ -18,7 +18,6 @@ creds = Credentials.from_service_account_info(
     ],
 )
 
-)
 
 gc = gspread.authorize(creds)
 
