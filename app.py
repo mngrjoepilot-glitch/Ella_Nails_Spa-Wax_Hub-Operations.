@@ -17,6 +17,9 @@ def get_client():
     return gspread.authorize(creds)
 
 # ---------- LOAD DATA ----------
+sh = gc.open_by_key(SHEET_ID)
+ws = sh.worksheet("fact_nails_reception")
+
 vals = ws.get_all_values()
 headers = [h.strip() for h in vals[0]]
 rows = vals[1:]
