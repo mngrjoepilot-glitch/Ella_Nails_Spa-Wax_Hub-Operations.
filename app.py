@@ -1,0 +1,80 @@
+import streamlit as st
+import pandas as pd
+from datetime import datetime, timedelta
+import gspread
+from google.oauth2.service_account import Credentials
+
+st.set_page_config(page_title="Ella Nails – Overview", layout="wide")
+
+# ---------- AUTH ----------
+@st.cache_resource
+def get_client():
+    scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=scopes,
+    )
+    return gspread.authorize(creds)
+
+# ---------- LOAD DATA ----------
+@st.cache_data(ttl=300)
+def load_sheet(sheet_name):
+    gc = get_client()
+    sh = gc.open_by_key(st.secrets["sheet_id"])
+    ws = sh.worksheet(sheet_name)
+    df = pd.DataFrame(ws.get_all_records())
+    return df
+
+def prep(df):
+    if df.empty:
+        return df
+    df["date_time"] = pd.to_datetime(df["date_time"], errors="coerce")
+    df["day"] = df["date_time"].dt.date
+    return df
+
+rec = prep(load_sheet("fact_nails_reception"))
+tech = prep(load_sheet("fact_nails_techs"))
+wax = prep(load_sheet("fact_wax"))
+
+# ---------- DATE LOGIC ----------
+today = datetime.now().date()
+week_start = today - timedelta(days=today.weekday())  # Monday
+week_end = week_start + timedelta(days=5)              # Saturday
+
+def sum_between(df, col, start, end):
+    if df.empty:
+        return 0
+    m = (df["day"] >= start) & (df["day"] <= end)
+    return float(pd.to_numeric(df.loc[m, col], errors="coerce").fillna(0).sum())
+
+# ---------- METRICS ----------
+rec_today = sum_between(rec, "service_cost", today, today)
+tech_today = sum_between(tech, "service_cost", today, today)
+wax_today = sum_between(wax, "service_cost", today, today)
+
+rec_week = sum_between(rec, "service_cost", week_start, week_end)
+tech_week = sum_between(tech, "service_cost", week_start, week_end)
+wax_week = sum_between(wax, "service_cost", week_start, week_end)
+
+# ---------- UI ----------
+st.title("Business Overview")
+
+st.subheader("Today")
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("Nails (Reception)", f"{rec_today:,.0f}")
+c2.metric("Nails (Tech)", f"{tech_today:,.0f}")
+c3.metric("Wax", f"{wax_today:,.0f}")
+c4.metric("Total", f"{(rec_today + wax_today):,.0f}")
+c5.metric("Diff (Rec–Tech)", f"{(rec_today - tech_today):,.0f}")
+
+st.divider()
+
+st.subheader("This Week (Mon–Sat)")
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("Nails (Reception)", f"{rec_week:,.0f}")
+c2.metric("Nails (Tech)", f"{tech_week:,.0f}")
+c3.metric("Wax", f"{wax_week:,.0f}")
+c4.metric("Total", f"{(rec_week + wax_week):,.0f}")
+c5.metric("Diff (Rec–Tech)", f"{(rec_week - tech_week):,.0f}")
+
+st.caption(f"Week: {week_start} → {week_end}")
