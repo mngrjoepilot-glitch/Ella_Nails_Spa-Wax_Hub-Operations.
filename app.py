@@ -38,6 +38,7 @@ def get_client():
         scopes=scopes,
     )
     return gspread.authorize(creds)
+SHEET_ID = st.secrets["144GXa99ETKAMXvY6i9IELvmF7gF0U07ta2Z-IbIEN38"]
 
 # ---------- LOAD DATA ----------
 sh = gc.open_by_key(SHEET_ID)
