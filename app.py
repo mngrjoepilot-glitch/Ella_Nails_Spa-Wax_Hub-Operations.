@@ -5,10 +5,19 @@ scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
+import json
+import streamlit as st
+from google.oauth2.service_account import Credentials
 
+sa_info = json.loads(st.secrets["gcp"]["service_account"])  # <-- THIS is the dict
 creds = Credentials.from_service_account_info(
-    st.secrets["gcp"],
-    scopes=scope
+    sa_info,
+    scopes=[
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ],
+)
+
 )
 
 gc = gspread.authorize(creds)
